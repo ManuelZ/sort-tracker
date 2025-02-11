@@ -26,3 +26,9 @@ pip install -r requirements.txt
 python main.py
 ```
 
+## References
+
+This implementation reflects my own learning journey, drawing on insights from the structure, code, and techniques found in:
+  - https://github.com/abewley/sort/blob/master/sort.py
+  - https://github.com/PacktPublishing/OpenCV-4-with-Python-Blueprints-Second-Edition/blob/master/chapter10/sort.py
+  - https://github.com/Jeremy26/tracking_course/tree/master
