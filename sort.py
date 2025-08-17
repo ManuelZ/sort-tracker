@@ -226,7 +226,7 @@ class SortTracker:
         """Return a sequential integer."""
         return next(self._id_counter)
 
-    def associate_detected_and_predicted_boxes(
+    def associate(
         self,
         detections: np.ndarray,
         predictions: np.ndarray,
@@ -284,7 +284,7 @@ class SortTracker:
 
         return matches, unmatched_detections#, unmatched_predictions
 
-    def _get_bbox_priors(self) -> list[list[float]]:
+    def predict(self) -> list[list[float]]:
         """
         Compute and return a list of predicted bounding boxes, excluding any predictions with NaN values.
 
@@ -324,7 +324,7 @@ class SortTracker:
             predictions.append(bbox_prior)
         return predictions
 
-    def filter_dead_trackers(self):
+    def _filter_dead_trackers(self):
         """ """
         alive_trackers = []
         for tracker in self.trackers:
@@ -334,7 +334,7 @@ class SortTracker:
                 print(f"Removing dead tracker with id '{tracker.id}'")
         return alive_trackers
 
-    def create_trackers(self, detections, unmatched_detections):
+    def _create_trackers(self, detections, unmatched_detections):
         """ """
         trackers = []
         for i in unmatched_detections:
@@ -344,7 +344,7 @@ class SortTracker:
             print(f"New tracker created with id '{new_id}'")
         return trackers
 
-    def should_output_tracker(self, tracker):
+    def _should_output_tracker(self, tracker):
         """
         Determine whether a given tracker should be output based on its update status, hit streak, and the current
         frame count.
@@ -394,23 +394,23 @@ class SortTracker:
         self.frame_count += 1
 
         # Kalman Filter prediction step: calculate priors
-        predictions = self._get_bbox_priors()
-        matches, unmatched_detections = self.associate_detected_and_predicted_boxes(detections, predictions)
+        predictions = self.predict()
+        matches, unmatched_detections = self.association(detections, predictions)
 
         # Kalman Filter update step: calculate posteriors
         for detection_idx, predicted_idx in matches:
             self.trackers[predicted_idx].update(detections[detection_idx])
 
         # Create new trackers
-        new_trackers = self.create_trackers(detections, unmatched_detections)
+        new_trackers = self._create_trackers(detections, unmatched_detections)
         self.trackers.extend(new_trackers)
 
         # Remove trackers that have not been updated in a while
-        self.trackers = self.filter_dead_trackers()
+        self.trackers = self._filter_dead_trackers()
 
         results = []
         for tracker in self.trackers:
-            if self.should_output_tracker(tracker):
+            if self._should_output_tracker(tracker):
                 results.append(
                     {"predicted_bbox": tracker.posterior_bbox, "id": tracker.id}
                 )
