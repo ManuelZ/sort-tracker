@@ -1,6 +1,6 @@
 # SORT Tracker with Kalman Filter
 
-A straightforward implementation of the SORT tracking algorithm. It uses a custom Kalman Filter to help predict where objects will be and matches them with new detections. It uses YOLO for object detection.
+An implementation of the SORT tracking algorithm using a custom Kalman Filter for prediction of objects' positions. Detections are provided by YOLOv11 and tracked objects are updated by associating predictions with new observations.
 
 - The multi-object tracking system monitors multiple objects (e.g., vehicles) within video sequences.
 - A Kalman Filter is employed to estimate an object's position, even when the object is not detected in a given frame.
