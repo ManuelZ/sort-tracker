@@ -395,7 +395,7 @@ class SortTracker:
 
         # Kalman Filter prediction step: calculate priors
         predictions = self.predict()
-        matches, unmatched_detections = self.association(detections, predictions)
+        matches, unmatched_detections = self.associate(detections, predictions)
 
         # Kalman Filter update step: calculate posteriors
         for detection_idx, predicted_idx in matches:
