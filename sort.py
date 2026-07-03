@@ -208,11 +208,11 @@ class KFTracker:
           2. Converts the predicted state into a bounding box format.
           3. Returns the resulting bounding box.
         """
-        prior, prior_P = self.filter.predict()
+        prior_x, prior_P = self.filter.predict()
         if self.cycles_since_update > 0:
             self.update_streak = 0
         self.cycles_since_update += 1
-        return self.__state_to_bbox(prior)
+        return self.__state_to_bbox(prior_x)
 
     def update(self, bbox: npt.NDArray[_FloatScalarT]) -> None:
         """ """
@@ -224,7 +224,7 @@ class KFTracker:
         self.posterior_bbox = self.__state_to_bbox(posterior)
 
 
-class SortTracker:
+class Sort:
     def __init__(
         self,
         iou_threshold: float = 0.3,
@@ -526,7 +526,7 @@ if __name__ == "__main__":
     COMPARE_WITH_YOLO_TRACK = True
     SELECTED_CLASSES = ["car"]
     video_filename = "MOT16-13-raw.mp4"  # https://motchallenge.net/data/MOT16/
-    sort_tracker = SortTracker(max_cycles_without_update=3)
+    sort_tracker = Sort(max_cycles_without_update=3)
     model = YOLO("yolo11l.pt")
 
     class_names = list(model.names.values())
