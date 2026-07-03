@@ -1,17 +1,21 @@
 # Standard Library imports
 from itertools import count
-from typing import Tuple
+from typing import Tuple, TypeAlias, TypeVar
 import sys
 sys.path.append(r"<<PATH_TO_Kalman-Filter_code>>")
 
 # External imports
 import cv2
 import numpy as np
+import numpy.typing as npt
 from ultralytics import YOLO
 from scipy.optimize import linear_sum_assignment
 
 # Local imports
 import kalman  # https://github.com/ManuelZ/Kalman-Filter
+
+_FloatScalarT = TypeVar("_FloatScalarT", bound=np.floating)
+_ToDType: TypeAlias = type[_FloatScalarT] | np.dtype[_FloatScalarT]
 
 """
 
@@ -39,7 +43,12 @@ The velocities and the aspect ratio stay constant over time (with some process n
 
 
 class KFTracker:
-    def __init__(self, bbox, tracking_id):
+    def __init__(
+        self,
+        bbox: npt.NDArray[_FloatScalarT],
+        tracking_id: int,
+        dt: float = 1.0,
+    ) -> None:
         self.id = tracking_id
         self.filter = self.create_filter(bbox)
         self.posterior_bbox = bbox
@@ -59,7 +68,11 @@ class KFTracker:
         # shown even if misdetections happen and only dissapears when the tracker is removed.
         self.updates = 0
 
-    def create_filter(self, bbox):
+    def create_filter(
+        self,
+        bbox: npt.NDArray[_FloatScalarT],
+        dtype: _ToDType[_FloatScalarT] = np.float64,
+    ) -> kalman.Kalman:
         """
         State:
             x = [u, v, s, r, u_dot, v_dot, s_dot].T
@@ -85,11 +98,11 @@ class KFTracker:
                 [0, 0, 0, 0, 0, 1, 0],
                 [0, 0, 0, 0, 0, 0, 1],
             ],
-            dtype=np.float64,
+            dtype=dtype,
         )
 
         process_noise_covariance = np.diag([10, 10, 10, 10, 1e4, 1e4, 1e4]).astype(
-            np.float64
+            dtype
         )
 
         # No Control model
@@ -103,7 +116,7 @@ class KFTracker:
                 [0, 0, 1, 0, 0, 0, 0],
                 [0, 0, 0, 1, 0, 0, 0],
             ],
-            dtype=np.float64,
+            dtype=dtype,
         )
 
         measurement_noise_covariance = np.diag([1, 1, 1, 1]).astype(np.float64)
@@ -112,12 +125,12 @@ class KFTracker:
         initial_state = np.vstack(
             (
                 self.__bbox_to_state(bbox),
-                np.array([0, 0, 0], dtype=np.float64).reshape(-1, 1),
+                np.array([0, 0, 0], dtype=dtype).reshape(-1, 1),
             )
         )
 
         initial_state_covariance = np.diag([1, 1, 1, 1, 1e-1, 1e-1, 1e-1]).astype(
-            np.float64
+            dtype
         )
 
         return kalman.Kalman(
@@ -130,7 +143,11 @@ class KFTracker:
             P_prev=initial_state_covariance,
         )
 
-    def __bbox_to_state(self, bbox, dtype=np.float64):
+    def __bbox_to_state(
+        self,
+        bbox: npt.NDArray[_FloatScalarT],
+        dtype: _ToDType[_FloatScalarT] = np.float64,
+    ) -> npt.NDArray[_FloatScalarT]:
         """
         Convert a bounding box defined by its top-left and bottom-right corners [x1, y1, x2, y2] to an observation
         vector [x, y, s, r], where:
@@ -152,7 +169,7 @@ class KFTracker:
 
         Returns
         -------
-        np.ndarray
+        npt.NDArray[_FloatScalarT]
             A 4x1 column vector (numpy array) containing [x, y, s, r].
 
         Modified from: https://github.com/abewley/sort/blob/master/sort.py
@@ -168,7 +185,9 @@ class KFTracker:
 
         return np.array([x, y, s, r], dtype=dtype).reshape(-1, 1)
 
-    def __state_to_bbox(self, x):
+    def __state_to_bbox(
+        self, x: npt.NDArray[_FloatScalarT]
+    ) -> npt.NDArray[_FloatScalarT]:
         """
         From: https://github.com/PacktPublishing/OpenCV-4-with-Python-Blueprints-Second-Edition/blob/master/chapter10/sort.py#L129
         """
@@ -180,7 +199,7 @@ class KFTracker:
         corners = center - half_size, center + half_size
         return np.concatenate(corners).astype(np.float64)
 
-    def predict(self):
+    def predict(self) -> npt.NDArray[_FloatScalarT]:
         """
         Compute and return the prior bounding box.
 
@@ -195,7 +214,7 @@ class KFTracker:
         self.cycles_since_update += 1
         return self.__state_to_bbox(prior)
 
-    def update(self, bbox):
+    def update(self, bbox: npt.NDArray[_FloatScalarT]) -> None:
         """ """
         self.cycles_since_update = 0
         self.update_streak += 1
@@ -208,11 +227,12 @@ class KFTracker:
 class SortTracker:
     def __init__(
         self,
-        iou_threshold=0.3,
-        max_cycles_without_update=1,
-        min_updates=3,
-        starting_id=1,
-    ):
+        iou_threshold: float = 0.3,
+        max_cycles_without_update: int = 1,
+        min_updates: int = 3,
+        starting_id: int = 1,
+        kalman_dt: float = 1.0,
+    ) -> None:
         """ """
 
         self.trackers: list[KFTracker] = []
@@ -222,16 +242,15 @@ class SortTracker:
         self.max_cycles_without_update = max_cycles_without_update
         self.frame_count = 0
 
-    def get_next_id(self):
+    def get_next_id(self) -> int:
         """Return a sequential integer."""
         return next(self._id_counter)
 
     def associate(
         self,
-        detections: np.ndarray,
-        predictions: np.ndarray,
-        dtype=np.float64
-        ) -> Tuple[np.ndarray, np.ndarray]:
+        detections: list[npt.NDArray[_FloatScalarT]],
+        predictions: list[npt.NDArray[_FloatScalarT]],
+    ) -> Tuple[list[tuple[int, int]], list[int]]:
         """
         Associate detection and tracking boxes based on their IoU values.
 
@@ -284,7 +303,7 @@ class SortTracker:
 
         return matches, unmatched_detections#, unmatched_predictions
 
-    def predict(self) -> list[list[float]]:
+    def predict(self) -> list[npt.NDArray[_FloatScalarT]]:
         """
         Compute and return a list of predicted bounding boxes, excluding any predictions with NaN values.
 
@@ -315,7 +334,8 @@ class SortTracker:
         visible frame.
 
         """
-        predictions = []
+
+        predictions: list[npt.NDArray[_FloatScalarT]] = []
         for tracker in self.trackers:
             bbox_prior = tracker.predict()
             if np.isnan(bbox_prior).any():
@@ -324,9 +344,9 @@ class SortTracker:
             predictions.append(bbox_prior)
         return predictions
 
-    def _filter_dead_trackers(self):
+    def _filter_dead_trackers(self) -> list[KFTracker]:
         """ """
-        alive_trackers = []
+        alive_trackers: list[KFTracker] = []
         for tracker in self.trackers:
             if tracker.cycles_since_update < self.max_cycles_without_update:
                 alive_trackers.append(tracker)
@@ -334,9 +354,13 @@ class SortTracker:
                 print(f"Removing dead tracker with id '{tracker.id}'")
         return alive_trackers
 
-    def _create_trackers(self, detections, unmatched_detections):
+    def _create_trackers(
+        self,
+        detections: list[npt.NDArray[_FloatScalarT]],
+        unmatched_detections: list[int],
+    ) -> list[KFTracker]:
         """ """
-        trackers = []
+        trackers: list[KFTracker] = []
         for i in unmatched_detections:
             new_id = self.get_next_id()
             new_tracker = KFTracker(detections[i], new_id)
@@ -344,7 +368,7 @@ class SortTracker:
             print(f"New tracker created with id '{new_id}'")
         return trackers
 
-    def _should_output_tracker(self, tracker):
+    def _should_output_tracker(self, tracker: KFTracker) -> bool:
         """
         Determine whether a given tracker should be output based on its update status, hit streak, and the current
         frame count.
@@ -369,7 +393,9 @@ class SortTracker:
             has_sufficient_updates or is_in_initial_phase
         )
 
-    def update(self, detections):
+    def update(
+        self, detections: list[npt.NDArray[_FloatScalarT]]
+    ) -> tuple[list[TrackResult], list[npt.NDArray[_FloatScalarT]]]:
         """
         - The tracker is initialised using the geometry of the bounding box with the velocity set to zero.
         - Since the velocity is unobserved at this point the covariance of the velocity component is initialised with
@@ -418,7 +444,11 @@ class SortTracker:
         return results
 
     @staticmethod
-    def _calculate_cost_matrix(detections, predictions, dtype=np.float64):
+    def _calculate_cost_matrix(
+        detections: list[npt.NDArray[_FloatScalarT]],
+        predictions: list[npt.NDArray[_FloatScalarT]],
+        dtype: _ToDType[_FloatScalarT] = np.float64,
+    ) -> npt.NDArray[_FloatScalarT]:
         """ """
         # TODO: This double loop looks costly. The original implementation vectorizes it, but is hard to read.
         iou_matrix = []
