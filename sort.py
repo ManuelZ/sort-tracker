@@ -1,15 +1,19 @@
+import sys
+
+# Extend path before importing the local Kalman library
+sys.path.append(r"<<PATH_TO_Kalman-Filter_code>>")
+
 # Standard Library imports
+import logging
 from itertools import count
 from typing import Tuple, TypeAlias, TypeVar
-import sys
-sys.path.append(r"<<PATH_TO_Kalman-Filter_code>>")
 
 # External imports
 import cv2
 import numpy as np
 import numpy.typing as npt
-from ultralytics import YOLO
 from scipy.optimize import linear_sum_assignment
+from ultralytics import YOLO
 
 # Local imports
 import kalman  # https://github.com/ManuelZ/Kalman-Filter
