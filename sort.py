@@ -281,6 +281,18 @@ class Sort:
         - The assignment is solved optimally using the Hungarian algorithm.
 
         Description from paper: "Simple Online And Realtime Tracking"
+
+        Args:
+            detections: Detection boxes in xyxy format, i.e. `[x1, y1, x2, y2]`.
+            predictions: Predicted track boxes in xyxy format, produced by `predict()` from the existing trackers' 
+                         Kalman filters.
+
+        Returns:
+            A tuple `(matches, unmatched_detections)`:
+
+            - `matches`: list of `(detection_idx, prediction_idx)` pairs whose IoU is at least `self.iou_threshold`.
+            - `unmatched_detections`: list of detection indices with no valid match (either rejected by the IoU 
+              threshold or unpaired by the assignment).
         """
         # TODO: improve the cost matrix
         iou_matrix = self._calculate_cost_matrix(detections, predictions)
@@ -471,7 +483,20 @@ class Sort:
         predictions: list[npt.NDArray[_FloatScalarT]],
         dtype: _ToDType[_FloatScalarT] = np.float64,
     ) -> npt.NDArray[_FloatScalarT]:
-        """ """
+        """
+        Build an IoU cost matrix between detections and track predictions.
+
+        Args:
+            detections: Detection boxes in xyxy format, i.e. `[x1, y1, x2, y2]`.
+            predictions: Predicted track boxes in xyxy format, i.e. `[x1, y1, x2, y2]`.
+            dtype: Numpy dtype for the returned matrix.
+
+        Returns:
+            An array of shape `(len(detections), len(predictions))` where entry
+            `[i, j]` is the IoU between detection `i` and prediction `j`. If
+            either `detections` or `predictions` is empty, an empty 1-D array
+            of shape `(0,)` is returned instead.
+        """
         # TODO: This double loop looks costly. The original implementation vectorizes it, but is hard to read.
         iou_matrix = []
         for det in detections:
