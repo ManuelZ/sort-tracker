@@ -82,7 +82,7 @@ class KFTracker:
         Motion model:
             u[t] = u[t-1] + u_dot * dt
             v[t] = u[t-1] + v_dot * dt
-            s[t] = s[t-1] + v_dot * dt
+            s[t] = s[t-1] + s_dot * dt
             r[t] = r[t-1]
             u_dot[t] = u_dot[t-1]
             v_dot[t] = v_dot[t-1]
