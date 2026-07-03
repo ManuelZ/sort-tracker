@@ -13,6 +13,7 @@ from scipy.optimize import linear_sum_assignment
 
 # Local imports
 import kalman  # https://github.com/ManuelZ/Kalman-Filter
+from utils import TrackResult, calculate_iou, draw_tracking_box, write_mot_results
 
 _FloatScalarT = TypeVar("_FloatScalarT", bound=np.floating)
 _ToDType: TypeAlias = type[_FloatScalarT] | np.dtype[_FloatScalarT]
@@ -459,67 +460,6 @@ class Sort:
         if len(iou_matrix) > 0:
             return iou_matrix.reshape(-1, len(predictions))
         return iou_matrix
-
-
-def calculate_iou(boxA: np.ndarray, boxB: np.ndarray) -> float:
-    """
-    Computes IUO between two bboxes in the form [x1,y1,x2,y2]
-    From:https://pyimagesearch.com/2016/11/07/intersection-over-union-iou-for-object-detection/
-    """
-    # determine the (x, y)-coordinates of the intersection rectangle
-    xA = max(boxA[0], boxB[0])
-    yA = max(boxA[1], boxB[1])
-    xB = min(boxA[2], boxB[2])
-    yB = min(boxA[3], boxB[3])
-    # compute the area of intersection rectangle
-    interArea = max(0, xB - xA + 1) * max(0, yB - yA + 1)
-    # compute the area of both the prediction and ground-truth rectangles
-    boxAArea = (boxA[2] - boxA[0] + 1) * (boxA[3] - boxA[1] + 1)
-    boxBArea = (boxB[2] - boxB[0] + 1) * (boxB[3] - boxB[1] + 1)
-    # compute the intersection over union by taking the intersection area and dividing it by the sum of
-    # prediction + ground-truth areas - the intersection area
-    iou = interArea / float(boxAArea + boxBArea - interArea)
-    # return the intersection over union value
-    return iou
-
-
-def id_to_color(idx):
-    """
-    Random function to convert an id to a color. Do what you want here but keep numbers below 255.
-    From: https://github.com/Jeremy26/tracking_course
-    """
-    blue = idx * 5 % 256
-    green = idx * 12 % 256
-    red = idx * 23 % 256
-    return (red, green, blue)
-
-
-def draw_tracking_box(image, observation):
-    """
-    Modified from: https://github.com/Jeremy26/tracking_course
-    """
-
-    left, top, right, bottom = map(int, observation["predicted_bbox"])
-    observation_id = observation["id"]
-
-    image = cv2.rectangle(
-        img=image,
-        pt1=(left, top),
-        pt2=(right, bottom),
-        color=id_to_color(observation_id * 10),
-        thickness=3,
-    )
-
-    image = cv2.putText(
-        img=image,
-        text=str(observation_id),
-        org=(left - 10, top - 10),
-        fontFace=cv2.FONT_HERSHEY_SIMPLEX,
-        fontScale=1,
-        color=id_to_color(observation_id * 10),
-        thickness=3,
-    )
-    return image
 
 
 if __name__ == "__main__":
