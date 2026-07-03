@@ -51,6 +51,7 @@ class KFTracker:
         dt: float = 1.0,
     ) -> None:
         self.id = tracking_id
+        self.dt = dt
         self.filter = self.create_filter(bbox)
         self.posterior_bbox = bbox
 
@@ -91,9 +92,9 @@ class KFTracker:
         # State transition model that predicts the new state
         state_transition_model = np.array(
             [
-                [1, 0, 0, 0, 1, 0, 0],
-                [0, 1, 0, 0, 0, 1, 0],
-                [0, 0, 1, 0, 0, 0, 1],
+                [1, 0, 0, 0, self.dt, 0, 0],
+                [0, 1, 0, 0, 0, self.dt, 0],
+                [0, 0, 1, 0, 0, 0, self.dt],
                 [0, 0, 0, 1, 0, 0, 0],
                 [0, 0, 0, 0, 1, 0, 0],
                 [0, 0, 0, 0, 0, 1, 0],
