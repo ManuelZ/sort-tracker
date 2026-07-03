@@ -202,6 +202,9 @@ class KFTracker:
         From: https://github.com/PacktPublishing/OpenCV-4-with-Python-Blueprints-Second-Edition/blob/master/chapter10/sort.py#L129
         """
         center_x, center_y, s, r, _, _, _ = x.flatten()
+        if s <= 0:
+            logger.warning(f"s <= 0: {s}")
+            return np.full(4, fill_value=np.nan, dtype=np.float64)
         w = np.sqrt(s * r)
         h = s / w
         center = np.array([center_x, center_y])
