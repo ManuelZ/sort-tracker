@@ -482,8 +482,18 @@ class Sort:
 
 if __name__ == "__main__":
     COMPARE_WITH_YOLO_TRACK = True
-    SELECTED_CLASSES = ["car"]
+    SELECTED_CLASSES = ["person"]
     video_filename = "MOT16-13-raw.mp4"  # https://motchallenge.net/data/MOT16/
+    output_filename = "out.mp4"
+
+    video_writer = cv2.VideoWriter(
+        filename=output_filename,
+        fourcc=cv2.VideoWriter_fourcc(*"mp4v"),  # *"MPEG", "MJPG", "mp4v", "FMP4"
+        fps=25,
+        frameSize=(960, 540),
+        isColor=True,
+    )
+
     sort_tracker = Sort(max_cycles_without_update=3)
     model = YOLO("yolo11l.pt")
 
@@ -499,15 +509,16 @@ if __name__ == "__main__":
         verbose=False,
     )
 
-    for r in results:
-        boxes = [box.xyxy[0].cpu().numpy() for box in r.boxes]
-        results = sort_tracker.update_tracks(boxes)
-        final_image = r.orig_img.copy()
-        for observation in results:
-            draw_tracking_box(final_image, observation)
-        cv2.imshow("", final_image)
-        cv2.waitKey(1)
+    with open("sort_results.txt", "w") as mot_file:
+        for frame_idx, r in enumerate(results):
+            boxes = [box.xyxy[0].cpu().numpy() for box in r.boxes]
+            posteriors, predictions = sort_tracker.update_tracks(boxes)
+            write_mot_results(mot_file, frame_idx + 1, posteriors)
+            final_image = r.orig_img.copy()
+            for observation in posteriors:
+                draw_tracking_box(final_image, observation)
+            video_writer.write(final_image)
+            cv2.imshow("", final_image)
+            cv2.waitKey(1)
+    video_writer.release()
     print("---")
-
-
-    
