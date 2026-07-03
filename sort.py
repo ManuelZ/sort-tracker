@@ -15,6 +15,10 @@ from scipy.optimize import linear_sum_assignment
 import kalman  # https://github.com/ManuelZ/Kalman-Filter
 from utils import TrackResult, calculate_iou, draw_tracking_box, write_mot_results
 
+
+logger = logging.getLogger(__name__)
+logger.addHandler(logging.NullHandler())
+
 _FloatScalarT = TypeVar("_FloatScalarT", bound=np.floating)
 _ToDType: TypeAlias = type[_FloatScalarT] | np.dtype[_FloatScalarT]
 
@@ -214,6 +218,9 @@ class KFTracker:
         if self.cycles_since_update > 0:
             self.update_streak = 0
         self.cycles_since_update += 1
+        logger.debug(
+            f"Predict of {self.id} - cycles_since_update: {self.cycles_since_update}, update_streak {self.update_streak}"
+        )
         return self.__state_to_bbox(prior_x)
 
     def update(self, bbox: npt.NDArray[_FloatScalarT]) -> None:
@@ -223,6 +230,9 @@ class KFTracker:
         self.updates += 1
         state = self.__bbox_to_state(bbox)
         posterior, posterior_P = self.filter.update(state)
+        logger.debug(
+            f"Update of {self.id} - cycles_since_update: {self.cycles_since_update}, update_streak {self.update_streak}"
+        )
         self.posterior_bbox = self.__state_to_bbox(posterior)
 
 
@@ -342,7 +352,9 @@ class Sort:
         for tracker in self.trackers:
             bbox_prior = tracker.predict()
             if np.isnan(bbox_prior).any():
-                print(f"NaN detected, skipping tracker with id '{tracker.id}'.")
+                logger.warning(
+                    f"NaN detected, skipping tracker with id '{tracker.id}'."
+                )
                 continue
             predictions.append(bbox_prior)
         return predictions
@@ -354,7 +366,7 @@ class Sort:
             if tracker.cycles_since_update < self.max_cycles_without_update:
                 alive_trackers.append(tracker)
             else:
-                print(f"Removing dead tracker with id '{tracker.id}'")
+                logger.debug(f"Removing dead tracker with id '{tracker.id}'")
         return alive_trackers
 
     def _create_trackers(
@@ -368,7 +380,7 @@ class Sort:
             new_id = self.get_next_id()
             new_tracker = KFTracker(detections[i], new_id, dt=self.kalman_dt)
             trackers.append(new_tracker)
-            print(f"New tracker created with id '{new_id}'")
+            logger.debug(f"New tracker created with id '{new_id}'")
         return trackers
 
     def _should_output_tracker(self, tracker: KFTracker) -> bool:
