@@ -412,7 +412,7 @@ class Sort:
             has_sufficient_updates or is_in_initial_phase
         )
 
-    def update(
+    def update_tracks(
         self, detections: list[npt.NDArray[_FloatScalarT]]
     ) -> tuple[list[TrackResult], list[npt.NDArray[_FloatScalarT]]]:
         """
@@ -453,14 +453,14 @@ class Sort:
         # Remove trackers that have not been updated in a while
         self.trackers = self._filter_dead_trackers()
 
-        results = []
+        posteriors: list[TrackResult] = []
         for tracker in self.trackers:
             if self._should_output_tracker(tracker):
-                results.append(
-                    {"predicted_bbox": tracker.posterior_bbox, "id": tracker.id}
+                posteriors.append(
+                    TrackResult(bbox=tracker.posterior_bbox, id=tracker.id)
                 )
 
-        return results
+        return posteriors, predictions
 
     @staticmethod
     def _calculate_cost_matrix(
@@ -501,7 +501,7 @@ if __name__ == "__main__":
 
     for r in results:
         boxes = [box.xyxy[0].cpu().numpy() for box in r.boxes]
-        results = sort_tracker.update(boxes)
+        results = sort_tracker.update_tracks(boxes)
         final_image = r.orig_img.copy()
         for observation in results:
             draw_tracking_box(final_image, observation)
