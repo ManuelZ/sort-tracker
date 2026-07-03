@@ -243,6 +243,7 @@ class Sort:
         self.min_updates = min_updates
         self.max_cycles_without_update = max_cycles_without_update
         self.frame_count = 0
+        self.kalman_dt = kalman_dt
 
     def get_next_id(self) -> int:
         """Return a sequential integer."""
@@ -365,7 +366,7 @@ class Sort:
         trackers: list[KFTracker] = []
         for i in unmatched_detections:
             new_id = self.get_next_id()
-            new_tracker = KFTracker(detections[i], new_id)
+            new_tracker = KFTracker(detections[i], new_id, dt=self.kalman_dt)
             trackers.append(new_tracker)
             print(f"New tracker created with id '{new_id}'")
         return trackers
