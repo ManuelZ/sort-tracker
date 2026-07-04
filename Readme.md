@@ -15,15 +15,23 @@ Some rules to show the tracking boxes differ from the original paper code.
 https://github.com/user-attachments/assets/e3cb5306-74a7-4d91-9893-121f2385e023
 
 
+## Installation
 
-## Requirements
+The project is an installable package. Environments and dependencies are managed with [uv](https://docs.astral.sh/uv/):
+
 ```
-pip install -r requirements.txt
+uv venv
+uv pip install -e .
 ```
+
+Optional dependency groups:
+- `uv pip install -e ".[deep]"` — PyTorch + torchvision + rerun-sdk (DeepSORT re-ID)
+- `uv pip install -e ".[eval]"` — motmetrics + trackeval (benchmark scoring)
+- `uv pip install -e ".[deep,eval]"` — both
 
 ## How to run
 ```
-python sort.py
+python scripts/mot16_sort.py --help
 ```
 
 ## References

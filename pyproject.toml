@@ -1,0 +1,30 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "tracking"
+version = "0.1.0"
+description = "SORT and DeepSORT multi-object trackers with MOT16 benchmarking scripts."
+requires-python = ">=3.10"
+dependencies = [
+  "numpy",
+  "opencv-python",
+  "pandas",
+  "scipy",
+  "ultralytics",
+]
+
+[project.optional-dependencies]
+deep = [
+  "torch",
+  "torchvision",
+  "rerun-sdk",
+]
+eval = [
+  "motmetrics",
+  "trackeval",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["tracking"]

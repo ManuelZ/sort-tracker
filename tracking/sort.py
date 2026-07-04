@@ -1,8 +1,3 @@
-import sys
-
-# Extend path before importing the local Kalman library
-sys.path.append(r"<<PATH_TO_Kalman-Filter_code>>")
-
 # Standard Library imports
 import logging
 from itertools import count
@@ -13,11 +8,10 @@ import cv2
 import numpy as np
 import numpy.typing as npt
 from scipy.optimize import linear_sum_assignment
-from ultralytics import YOLO
 
 # Local imports
 import kalman  # https://github.com/ManuelZ/Kalman-Filter
-from utils import TrackResult, calculate_iou, draw_tracking_box, write_mot_results
+from tracking.utils import TrackResult, calculate_iou, draw_tracking_box, write_mot_results
 
 
 logger = logging.getLogger(__name__)
@@ -509,6 +503,8 @@ class Sort:
 
 
 if __name__ == "__main__":
+    from ultralytics import YOLO
+
     COMPARE_WITH_YOLO_TRACK = True
     SELECTED_CLASSES = ["person"]
     video_filename = "MOT16-13-raw.mp4"  # https://motchallenge.net/data/MOT16/
