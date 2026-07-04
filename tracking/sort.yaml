@@ -1,0 +1,44 @@
+# SORT tracker Kalman filter configuration.
+#
+# State vector: x = [u, v, s, r, u_dot, v_dot, s_dot].T
+#   u, v  : bbox center pixel coordinates
+#   s     : bbox scale (area)
+#   r     : bbox aspect ratio (w / h)
+#
+# Loaded by tracking.sort.KFTracker.
+
+# Association / lifecycle parameters (used by `Sort`).
+iou_threshold: 0.3            # Minimum IoU for a detection/prediction match.
+max_cycles_without_update: 1  # TLost: cycles a tracker survives without an update.
+min_updates: 3                # Hits required before a tracker is emitted.
+starting_id: 1                # First id assigned to a new tracker.
+
+# Kalman filter parameters (used by `KFTracker`).
+dt: 1.0
+
+# State transition matrix F (7x7). The dt entries at (0,4), (1,5), (2,6) must
+# match `dt` above.
+state_transition_model:
+  - [1, 0, 0, 0, 1.0, 0,   0  ]
+  - [0, 1, 0, 0, 0,   1.0, 0  ]
+  - [0, 0, 1, 0, 0,   0,   1.0]
+  - [0, 0, 0, 1, 0,   0,   0  ]
+  - [0, 0, 0, 0, 1,   0,   0  ]
+  - [0, 0, 0, 0, 0,   1,   0  ]
+  - [0, 0, 0, 0, 0,   0,   1  ]
+
+# Observation matrix H (4x7): only u, v, s, r are measured.
+observation_matrix:
+  - [1, 0, 0, 0, 0, 0, 0]
+  - [0, 1, 0, 0, 0, 0, 0]
+  - [0, 0, 1, 0, 0, 0, 0]
+  - [0, 0, 0, 1, 0, 0, 0]
+
+# Diagonal of the process noise covariance Q (length 7).
+process_noise_covariance_diag: [10, 10, 10, 10, 0.1, 0.1, 1000.0]
+
+# Diagonal of the measurement noise covariance R (length 4).
+measurement_noise_covariance_diag: [20.2216, 93.6803, 11572698.3807, 0.0047]
+
+# Diagonal of the initial state covariance P0 (length 7).
+initial_state_covariance_diag: [1, 1, 1, 1, 1, 1, 0.1]

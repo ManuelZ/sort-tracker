@@ -1,6 +1,7 @@
 # Standard Library imports
 import logging
 from itertools import count
+from pathlib import Path
 from typing import Tuple, TypeAlias, TypeVar
 
 # External imports
@@ -8,11 +9,16 @@ import cv2
 import numpy as np
 import numpy.typing as npt
 from scipy.optimize import linear_sum_assignment
+import yaml
 
 # Local imports
 from kalman_filter import kalman  # https://github.com/ManuelZ/Kalman-Filter
-from tracking.utils import TrackResult, calculate_iou, draw_tracking_box, write_mot_results
-
+from tracking.utils import (
+    TrackResult,
+    calculate_iou,
+    draw_tracking_box,
+    write_mot_results,
+)
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
@@ -45,15 +51,25 @@ The velocities and the aspect ratio stay constant over time (with some process n
 """
 
 
+DEFAULT_CONFIG_PATH = Path(__file__).with_name("sort.yaml")
+
+
+def load_config(config_path: str | Path = DEFAULT_CONFIG_PATH) -> dict:
+    """Load Kalman filter matrices from a YAML file."""
+    with open(config_path, "r") as f:
+        return yaml.safe_load(f)
+
+
 class KFTracker:
     def __init__(
         self,
         bbox: npt.NDArray[_FloatScalarT],
         tracking_id: int,
-        dt: float = 1.0,
+        config: dict | None = None,
     ) -> None:
         self.id = tracking_id
-        self.dt = dt
+        self.config = config if config is not None else load_config()
+        self.dt = float(self.config["dt"])
         self.filter = self.create_filter(bbox)
         self.posterior_bbox = bbox
 
@@ -91,39 +107,22 @@ class KFTracker:
             s_dot[t] = s_dot[t-1]
         """
 
-        # State transition model that predicts the new state
         state_transition_model = np.array(
-            [
-                [1, 0, 0, 0, self.dt, 0, 0],
-                [0, 1, 0, 0, 0, self.dt, 0],
-                [0, 0, 1, 0, 0, 0, self.dt],
-                [0, 0, 0, 1, 0, 0, 0],
-                [0, 0, 0, 0, 1, 0, 0],
-                [0, 0, 0, 0, 0, 1, 0],
-                [0, 0, 0, 0, 0, 0, 1],
-            ],
-            dtype=dtype,
+            self.config["state_transition_model"], dtype=dtype
         )
 
-        process_noise_covariance = np.diag([10, 10, 10, 10, 1e4, 1e4, 1e4]).astype(
-            dtype
-        )
+        process_noise_covariance = np.diag(
+            self.config["process_noise_covariance_diag"]
+        ).astype(dtype)
 
         # No Control model
         control_model = None
 
-        # Measurement matrix, aka Observation matrix. Only u, v, s and r are being measured.
-        observation_matrix = np.array(
-            [
-                [1, 0, 0, 0, 0, 0, 0],
-                [0, 1, 0, 0, 0, 0, 0],
-                [0, 0, 1, 0, 0, 0, 0],
-                [0, 0, 0, 1, 0, 0, 0],
-            ],
-            dtype=dtype,
-        )
+        observation_matrix = np.array(self.config["observation_matrix"], dtype=dtype)
 
-        measurement_noise_covariance = np.diag([1, 1, 1, 1]).astype(np.float64)
+        measurement_noise_covariance = np.diag(
+            self.config["measurement_noise_covariance_diag"]
+        ).astype(dtype)
 
         # Create the initial state with zero velocities
         initial_state = np.vstack(
@@ -133,9 +132,9 @@ class KFTracker:
             )
         )
 
-        initial_state_covariance = np.diag([1, 1, 1, 1, 1e-1, 1e-1, 1e-1]).astype(
-            dtype
-        )
+        initial_state_covariance = np.diag(
+            self.config["initial_state_covariance_diag"]
+        ).astype(dtype)
 
         return kalman.Kalman(
             F=state_transition_model,
@@ -240,21 +239,33 @@ class KFTracker:
 class Sort:
     def __init__(
         self,
-        iou_threshold: float = 0.3,
-        max_cycles_without_update: int = 1,
-        min_updates: int = 3,
-        starting_id: int = 1,
-        kalman_dt: float = 1.0,
+        config_path: str | Path = DEFAULT_CONFIG_PATH,
+        iou_threshold: float | None = None,
+        max_cycles_without_update: int | None = None,
+        min_updates: int | None = None,
+        starting_id: int | None = None,
     ) -> None:
-        """ """
+        """Values in the YAML config are used unless overridden by kwargs."""
+
+        self.config = load_config(config_path)
 
         self.trackers: list[KFTracker] = []
-        self._id_counter = count(starting_id)
-        self.iou_threshold = iou_threshold
-        self.min_updates = min_updates
-        self.max_cycles_without_update = max_cycles_without_update
+        self.iou_threshold = (
+            iou_threshold if iou_threshold is not None else self.config["iou_threshold"]
+        )
+        self.min_updates = (
+            min_updates if min_updates is not None else self.config["min_updates"]
+        )
+        # Corresponds to TLost in the paper
+        self.max_cycles_without_update = (
+            max_cycles_without_update
+            if max_cycles_without_update is not None
+            else self.config["max_cycles_without_update"]
+        )
+        self._id_counter = count(
+            starting_id if starting_id is not None else self.config["starting_id"]
+        )
         self.frame_count = 0
-        self.kalman_dt = kalman_dt
 
     def get_next_id(self) -> int:
         """Return a sequential integer."""
@@ -391,7 +402,7 @@ class Sort:
         trackers: list[KFTracker] = []
         for i in unmatched_detections:
             new_id = self.get_next_id()
-            new_tracker = KFTracker(detections[i], new_id, dt=self.kalman_dt)
+            new_tracker = KFTracker(detections[i], new_id, config=self.config)
             trackers.append(new_tracker)
             logger.debug(f"New tracker created with id '{new_id}'")
         return trackers
