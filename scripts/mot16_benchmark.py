@@ -21,7 +21,6 @@ from datetime import datetime
 from pathlib import Path
 
 # External imports
-import cv2
 import trackeval
 
 # Local imports
@@ -30,39 +29,10 @@ from scripts.mot16_sort import (
     iter_mot16,
     iter_yolo,
     make_reid_model,
+    track_sequence,
     track_sequence_ultralytics,
 )
 from tracking.sort import DEFAULT_CONFIG_PATH as SORT_CONFIG_PATH
-from tracking.sort import Sort
-from tracking.utils import write_mot_results
-
-
-def track_sequence(
-    det_iter,
-    tracker_name: str,
-    out_file,
-    reid_model=None,
-    reid_transform=None,
-) -> None:
-    """Run tracker on a sequence and stream MOT-format results to out_file."""
-    if tracker_name == "sort":
-        tracker = Sort(max_cycles_without_update=3)
-        for frame_number, boxes, _ in det_iter:
-            tracked, _ = tracker.update_tracks(list(boxes))
-            write_mot_results(out_file, frame_number, tracked)
-    else:
-        from tracking.deepsort import DeepSort, extract_descriptors
-
-        tracker = DeepSort(max_cycles_without_update=30, motion_weight=0)
-        for frame_number, boxes, frame_path in det_iter:
-            frame = cv2.imread(str(frame_path))
-            descriptors = (
-                extract_descriptors(frame, list(boxes), reid_model, reid_transform)
-                if len(boxes)
-                else None
-            )
-            tracked = tracker.update(list(boxes), descriptors)
-            write_mot_results(out_file, frame_number, tracked)
 
 
 def run_trackeval(

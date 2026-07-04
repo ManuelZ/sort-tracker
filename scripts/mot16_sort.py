@@ -64,6 +64,34 @@ def iter_yolo(
         yield frame_number, boxes, Path(r.path)
 
 
+def track_sequence(
+    det_iter,
+    tracker_name: str,
+    out_file,
+    reid_model=None,
+    reid_transform=None,
+) -> None:
+    """Run SORT or DeepSORT on a sequence and stream MOT-format results to out_file."""
+    if tracker_name == "sort":
+        tracker = Sort(max_cycles_without_update=3)
+        for frame_number, boxes, scores, _ in det_iter:
+            tracked, _ = tracker.update_tracks(list(zip(boxes, scores)))
+            write_mot_results(out_file, frame_number, tracked)
+    else:
+        from tracking.deepsort import DeepSort, extract_descriptors
+
+        tracker = DeepSort(max_cycles_without_update=3)
+        for frame_number, boxes, _scores, frame_path in det_iter:
+            frame = cv2.imread(str(frame_path))
+            descriptors = (
+                extract_descriptors(frame, list(boxes), reid_model, reid_transform)
+                if len(boxes)
+                else None
+            )
+            tracked = tracker.update(list(boxes), descriptors)
+            write_mot_results(out_file, frame_number, tracked)
+
+
 def track_sequence_ultralytics(
     yolo_path: str,
     frames_dir: Path,
@@ -166,25 +194,11 @@ def main():
             else iter_yolo(args.yolo, args.frames)
         )
 
-        if args.tracker == "sort":
-            tracker = Sort(max_cycles_without_update=3)
-            for frame_number, boxes, _ in det_iter:
-                tracked, _ = tracker.update_tracks(list(boxes))
-                write_mot_results(mot_file, frame_number, tracked)
-        else:
-            from tracking.deepsort import DeepSort, extract_descriptors
-
-            tracker = DeepSort(max_cycles_without_update=3)
+        reid_model = reid_transform = None
+        if args.tracker == "deepsort":
             reid_model, reid_transform = make_reid_model()
-            for frame_number, boxes, frame_path in det_iter:
-                frame = cv2.imread(str(frame_path))
-                descriptors = (
-                    extract_descriptors(frame, list(boxes), reid_model, reid_transform)
-                    if len(boxes)
-                    else None
-                )
-                tracked = tracker.update(list(boxes), descriptors)
-                write_mot_results(mot_file, frame_number, tracked)
+
+        track_sequence(det_iter, args.tracker, mot_file, reid_model, reid_transform)
 
     print(f"Saved: {args.output}")
 
