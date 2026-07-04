@@ -22,7 +22,6 @@ deep = [
   "rerun-sdk",
 ]
 eval = [
-  "motmetrics",
   "trackeval",
 ]
 
