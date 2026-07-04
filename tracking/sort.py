@@ -193,7 +193,7 @@ class KFTracker:
         self, x: npt.NDArray[_FloatScalarT]
     ) -> npt.NDArray[_FloatScalarT]:
         """
-        From: https://github.com/PacktPublishing/OpenCV-4-with-Python-Blueprints-Second-Edition/blob/master/chapter10/sort.py#L129
+        From: https://github.com/PacktPublishing/OpenCV-4-with-Python-Blueprints-Second-Edition/blob/3ec8f66a5285d34a79257c86e3ae09419ecdaa0c/chapter10/sort.py#L38
         """
         center_x, center_y, s, r, _, _, _ = x.flatten()
         if s <= 0:
