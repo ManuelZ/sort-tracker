@@ -10,7 +10,7 @@ import numpy.typing as npt
 from scipy.optimize import linear_sum_assignment
 
 # Local imports
-import kalman  # https://github.com/ManuelZ/Kalman-Filter
+from kalman_filter import kalman  # https://github.com/ManuelZ/Kalman-Filter
 from tracking.utils import TrackResult, calculate_iou, draw_tracking_box, write_mot_results
 
 
